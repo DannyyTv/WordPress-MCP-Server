@@ -20,6 +20,10 @@ A robust, secure Model Context Protocol (MCP) server for WordPress integration. 
 **REQUIRED:**
 - **Node.js 18.0.0 or higher** ⚠️ **MANDATORY** - Claude Desktop uses Node.js to execute this MCP server
   - Download: https://nodejs.org/
+  - Quick install commands:
+    - macOS (Homebrew): `brew install node`
+    - macOS/Linux (nvm): `curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash && source ~/.nvm/nvm.sh && nvm install --lts`
+    - Windows (winget): `winget install OpenJS.NodeJS.LTS`
   - Verify: Run `node --version` in your terminal
 - **npm** (Node Package Manager) - Usually installed with Node.js
   - Verify: Run `npm --version` in your terminal
