@@ -457,3 +457,8 @@ For issues and questions:
 2. Verify your WordPress configuration
 3. Test with debug logging enabled
 4. Review the server logs for detailed error information
+
+## About the Author
+
+- Homepage: https://mindsnapz.de
+- App: https://mindsnapz.de/pomodash/
