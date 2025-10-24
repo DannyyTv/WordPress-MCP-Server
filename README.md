@@ -15,19 +15,94 @@ A robust, secure Model Context Protocol (MCP) server for WordPress integration. 
 
 ## Quick Start
 
-### 1. Installation
+### Prerequisites
 
-Clone the repository and install dependencies:
+Before starting, you'll need:
+1. A WordPress site with REST API enabled
+2. Node.js 18+ installed
+3. Your WordPress Application Password (see setup instructions below)
+
+### Method 1: Claude Desktop (Recommended)
+
+This is the easiest way to use the WordPress MCP Server with Claude Desktop.
+
+#### Step 1: Build the Server
 
 ```bash
-git clone https://github.com/yourusername/wordpress-mcp-server.git
-cd wordpress-mcp-server
+git clone https://github.com/DannyyTv/WordPress-MCP-Server.git
+cd WordPress-MCP-Server
 npm install
+npm run build
 ```
 
-### 2. Configuration
+#### Step 2: Create WordPress Application Password
 
-Copy the environment template:
+1. Go to your WordPress admin: `Users > Profile`
+2. Scroll to "Application Passwords"
+3. Enter a name like "Claude Desktop MCP"
+4. Click "Add New Application Password"
+5. Copy the generated password (you'll need it in the next step)
+
+#### Step 3: Get Your WordPress REST API URL
+
+Your WordPress REST API URL is typically:
+```
+https://your-site.com
+```
+
+(The `/wp-json/wp/v2/` part is added automatically by the server)
+
+#### Step 4: Add to Claude Desktop Config
+
+Open your Claude Desktop configuration file:
+- **Mac/Linux**: `~/.config/Claude/claude_desktop_config.json`
+- **Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
+
+Add this configuration under `mcpServers`:
+
+```json
+{
+  "mcpServers": {
+    "wordpress": {
+      "command": "node",
+      "args": ["/Users/YOUR-USERNAME/WordPress-MCP-Server/dist/index.js"],
+      "env": {
+        "WORDPRESS_URL": "https://your-wordpress-site.com",
+        "WORDPRESS_USERNAME": "your-email@example.com",
+        "WORDPRESS_APP_PASSWORD": "your-application-password"
+      }
+    }
+  }
+}
+```
+
+**Important:** Replace the values with your actual WordPress credentials:
+- `WORDPRESS_URL`: Your WordPress site URL (e.g., `https://mindsnapz.de`)
+- `WORDPRESS_USERNAME`: Your WordPress username or email
+- `WORDPRESS_APP_PASSWORD`: The application password you created in Step 2
+
+#### Step 5: Restart Claude Desktop
+
+After updating the config, restart Claude Desktop for changes to take effect. The WordPress tools will now be available in Claude.
+
+---
+
+### Method 2: Command Line / Testing
+
+For testing the server locally or in automation scripts:
+
+#### Using Environment Variables
+
+```bash
+export WORDPRESS_URL=https://your-wordpress-site.com
+export WORDPRESS_USERNAME=your-email@example.com
+export WORDPRESS_APP_PASSWORD=your-application-password
+
+npm run build
+npm start
+```
+
+#### Using .env File
 
 ```bash
 cp .env.example .env
@@ -37,37 +112,20 @@ Edit `.env` with your WordPress credentials:
 
 ```bash
 WORDPRESS_URL=https://your-wordpress-site.com
-WORDPRESS_USERNAME=your-username
+WORDPRESS_USERNAME=your-email@example.com
 WORDPRESS_APP_PASSWORD=your-application-password
 ```
 
-### 3. WordPress Setup
+Then run:
 
-#### Create Application Password
-
-1. Go to your WordPress admin: `Users > Profile`
-2. Scroll to "Application Passwords"
-3. Enter a name like "MCP Server"
-4. Click "Add New Application Password"
-5. Copy the generated password (save it securely!)
-
-#### Verify REST API
-
-Test your REST API is accessible:
 ```bash
-curl -u "username:app-password" https://your-site.com/wp-json/wp/v2/posts?per_page=1
+npm run build
+npm start
 ```
 
-### 4. Build and Test
+#### Testing with Manual Requests
 
 ```bash
-# Build the server
-npm run build
-
-# Test the server (development mode with hot reload)
-npm run dev
-
-# In another terminal, you can test with a valid MCP request
 # Initialize the server:
 echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"test-client","version":"1.0.0"}}}' | npm start
 
@@ -77,6 +135,18 @@ echo '{"jsonrpc":"2.0","id":2,"method":"tools/list"}' | npm start
 # Test WordPress connection:
 echo '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"test_wordpress_connection","arguments":{}}}' | npm start
 ```
+
+---
+
+### Method 3: Development Mode
+
+For development with hot reload:
+
+```bash
+npm run dev
+```
+
+Then in another terminal, test with MCP requests as shown in Method 2.
 
 ## Transport & Compatibility
 
@@ -103,43 +173,6 @@ Stdio transport provides:
 ### Future Transport Options
 
 For other transport methods (HTTP/SSE), a separate implementation would be needed. Currently, this server focuses on optimal integration with Claude's native tools.
-
-## Claude Desktop Configuration
-
-### Security Warning ⚠️
-**Never store credentials directly in `claude_desktop_config.json`!** Use environment variables instead.
-
-Add to your Claude Desktop `claude_desktop_config.json`:
-
-```json
-{
-  "mcpServers": {
-    "wordpress": {
-      "command": "node",
-      "args": ["/Users/YOUR-USERNAME/wordpress-mcp-server/dist/index.js"]
-    }
-  }
-}
-```
-
-Then set environment variables in your shell:
-
-```bash
-export WORDPRESS_URL=https://your-wordpress-site.com
-export WORDPRESS_USERNAME=your-username
-export WORDPRESS_APP_PASSWORD=your-application-password
-```
-
-Or add to your shell profile (`.zshrc`, `.bash_profile`, etc.):
-
-```bash
-# ~/.zshrc or ~/.bash_profile
-export WORDPRESS_URL="https://your-wordpress-site.com"
-export WORDPRESS_USERNAME="your-username"
-export WORDPRESS_APP_PASSWORD="your-application-password"
-```
-
-Then restart Claude Desktop for the changes to take effect.
 
 ## Available Tools
 
