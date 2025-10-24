@@ -5,7 +5,7 @@ A robust, secure Model Context Protocol (MCP) server for WordPress integration. 
 ## Features
 
 - ✅ **Complete WordPress Integration**: Create, update, delete, and list posts
-- 🔒 **Security First**: Application Password authentication, SSL verification, input validation
+- 🔒 **Security First**: Application Password authentication, standard TLS verification, input validation
 - 🛡️ **Robust Error Handling**: Comprehensive error catching and user-friendly messages
 - 📝 **Type Safety**: Full TypeScript implementation with Zod validation
 - 🚀 **Performance**: Configurable timeouts, connection testing, optimized requests
@@ -21,6 +21,8 @@ A robust, secure Model Context Protocol (MCP) server for WordPress integration. 
 - **Node.js 18.0.0 or higher** ⚠️ **MANDATORY** - Claude Desktop uses Node.js to execute this MCP server
   - Download: https://nodejs.org/
   - Verify: Run `node --version` in your terminal
+- **npm** (Node Package Manager) - Usually installed with Node.js
+  - Verify: Run `npm --version` in your terminal
 - **A WordPress site** with REST API enabled
 - **Your WordPress Application Password** (created in setup instructions below)
 
@@ -138,6 +140,32 @@ Then run:
 npm run build
 npm start
 ```
+
+Note: `.env` wird vom Prozess aus dem aktuellen Arbeitsverzeichnis geladen. Wenn ein GUI‑Prozess (z. B. Claude Desktop) das Working Directory anders setzt, kann `.env` unentdeckt bleiben. In diesem Fall die Variablen als OS‑Umgebungsvariablen setzen oder den Prozess aus dem Repo‑Verzeichnis starten.
+
+**For Claude Desktop specifically:**
+- **Option 1 (Recommended):** Set credentials in the `env` field of `claude_desktop_config.json` (see Method 1, Step 4 above)
+- **Option 2:** Set system-wide environment variables:
+  - **macOS**: Add to `~/.zprofile` or `~/.bash_profile`:
+    ```bash
+    export WORDPRESS_URL="https://your-site.com"
+    export WORDPRESS_USERNAME="your-email@example.com"
+    export WORDPRESS_APP_PASSWORD="your-app-password"
+    ```
+    Restart Claude Desktop for changes to take effect.
+  - **Windows**: Settings > System > Environment Variables > New User Variable:
+    - `WORDPRESS_URL` = `https://your-site.com`
+    - `WORDPRESS_USERNAME` = `your-email@example.com`
+    - `WORDPRESS_APP_PASSWORD` = `your-app-password`
+
+    Restart Claude Desktop for changes to take effect.
+  - **Linux**: Add to `~/.bashrc` or `~/.zshrc`:
+    ```bash
+    export WORDPRESS_URL="https://your-site.com"
+    export WORDPRESS_USERNAME="your-email@example.com"
+    export WORDPRESS_APP_PASSWORD="your-app-password"
+    ```
+    Restart Claude Desktop (or run `source ~/.bashrc`).
 
 #### Testing with Manual Requests
 
@@ -315,8 +343,8 @@ Test the WordPress connection
 
 ## Security Features
 
-- **Application Password Authentication**: Secure, token-based authentication
-- **SSL Certificate Verification**: Rejects unauthorized certificates in production
+- **Application Password Authentication**: Secure, revocable authentication
+- **TLS Certificate Verification**: Uses Node/Axios standard TLS verification; no insecure overrides
 - **Input Validation**: Comprehensive validation using Zod schemas
 - **Rate Limiting Awareness**: Proper handling of WordPress rate limits
 - **Error Sanitization**: Prevents sensitive information leakage
@@ -398,8 +426,9 @@ LOG_LEVEL=debug npm start
 
 Use the built-in connection test:
 
-```
-Test the WordPress connection
+```bash
+# Calls the built-in MCP tool over stdin to verify credentials/connectivity
+echo '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"test_wordpress_connection","arguments":{}}}' | npm start
 ```
 
 ## Architecture
