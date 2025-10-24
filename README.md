@@ -15,18 +15,24 @@ A robust, secure Model Context Protocol (MCP) server for WordPress integration. 
 
 ## Quick Start
 
-### Prerequisites
+### System Requirements
 
-Before starting, you'll need:
-1. A WordPress site with REST API enabled
-2. Node.js 18+ installed
-3. Your WordPress Application Password (see setup instructions below)
+**REQUIRED:**
+- **Node.js 18.0.0 or higher** ⚠️ **MANDATORY** - Claude Desktop uses Node.js to execute this MCP server
+  - Download: https://nodejs.org/
+  - Verify: Run `node --version` in your terminal
+- **A WordPress site** with REST API enabled
+- **Your WordPress Application Password** (created in setup instructions below)
+
+Without Node.js installed, Claude Desktop cannot run this server.
 
 ### Method 1: Claude Desktop (Recommended)
 
 This is the easiest way to use the WordPress MCP Server with Claude Desktop.
 
-#### Step 1: Build the Server
+#### Step 1: Build and Setup the Server
+
+⚠️ **This step is required.** Claude Desktop needs the compiled `dist/` folder and dependencies to run.
 
 ```bash
 git clone https://github.com/DannyyTv/WordPress-MCP-Server.git
@@ -34,6 +40,11 @@ cd WordPress-MCP-Server
 npm install
 npm run build
 ```
+
+What this does:
+- `npm install` - Downloads all required Node.js dependencies (required by the server)
+- `npm run build` - Compiles TypeScript to JavaScript in the `dist/` folder
+- Both steps are **mandatory** for Claude Desktop to execute the server
 
 #### Step 2: Create WordPress Application Password
 
@@ -83,7 +94,12 @@ Add this configuration under `mcpServers`:
 
 #### Step 5: Restart Claude Desktop
 
-After updating the config, restart Claude Desktop for changes to take effect. The WordPress tools will now be available in Claude.
+After updating the config, **completely close and restart Claude Desktop** for changes to take effect.
+
+The WordPress tools will then be available in Claude. If you get a "connection failed" error:
+1. Verify Node.js is installed: `node --version` should show 18.0.0 or higher
+2. Verify the path to `dist/index.js` is correct in your config
+3. Verify you completed Step 1 (npm install & npm run build)
 
 ---
 
