@@ -10,7 +10,8 @@ A robust, secure Model Context Protocol (MCP) server for WordPress integration. 
 - 📝 **Type Safety**: Full TypeScript implementation with Zod validation
 - 🚀 **Performance**: Configurable timeouts, connection testing, optimized requests
 - 📊 **Monitoring**: Structured logging with configurable levels
-- 🔄 **MCP Compatibility**: Works with both Claude Desktop and Claude Code
+- 🔄 **MCP Compatibility**: Works with Claude Desktop and Claude Code (Stdio-based)
+- 🔌 **Stdio Transport**: Uses Standard Input/Output for JSON-RPC 2.0 communication
 
 ## Quick Start
 
@@ -76,6 +77,32 @@ echo '{"jsonrpc":"2.0","id":2,"method":"tools/list"}' | npm start
 # Test WordPress connection:
 echo '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"test_wordpress_connection","arguments":{}}}' | npm start
 ```
+
+## Transport & Compatibility
+
+### Stdio-Based Communication
+
+This MCP server uses **Stdio (Standard Input/Output)** for JSON-RPC 2.0 communication. The server reads JSON-RPC requests from standard input and writes responses to standard output. This design enables direct process integration with Claude tools.
+
+### Compatible Clients
+
+- ✅ **Claude Desktop**: Full support via process spawning
+- ✅ **Claude Code**: Full support via stdio piping
+- ❌ **HTTP/REST Tools**: Not compatible (no HTTP endpoint)
+- ❌ **Browser-Based Tools**: Not compatible (requires native process execution)
+- ❌ **Web Services**: Not compatible (no HTTP server)
+
+### Why Stdio-Only?
+
+Stdio transport provides:
+- **Direct process communication** without network overhead
+- **Secure credentials** - environment variables stay local, never transmitted over network
+- **Tight integration** with Claude Desktop/Code's subprocess execution model
+- **Simplicity** - no need for HTTP server, port binding, or network configuration
+
+### Future Transport Options
+
+For other transport methods (HTTP/SSE), a separate implementation would be needed. Currently, this server focuses on optimal integration with Claude's native tools.
 
 ## Claude Desktop Configuration
 

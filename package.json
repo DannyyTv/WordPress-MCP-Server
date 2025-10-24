@@ -12,7 +12,11 @@
     "type-check": "tsc --noEmit"
   },
   "keywords": ["mcp", "wordpress", "model-context-protocol"],
-  "author": "",
+  "author": "Danny <Dannybui1991@googlemail.com>",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/DannyyTv/WordPress-MCP-Server.git"
+  },
   "license": "MIT",
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.0",
