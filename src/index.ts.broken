@@ -1,0 +1,427 @@
+#!/usr/bin/env node
+
+import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
+import { z } from 'zod';
+import dotenv from 'dotenv';
+
+import { 
+  Config, 
+  ConfigSchema
+} from './types.js';
+import { WordPressApiClient } from './wordpress-api.js';
+import { ConsoleLogger } from './logger.js';
+
+// Load environment variables
+dotenv.config();
+
+class WordPressMcpServer {
+  private server: McpServer;
+  private wordpressClient: WordPressApiClient;
+  private logger: ConsoleLogger;
+  private config: Config;
+
+  constructor() {
+    // Validate and load configuration
+    this.config = this.loadConfig();
+    this.logger = new ConsoleLogger(this.config.LOG_LEVEL);
+    
+    this.logger.info('Starting WordPress MCP Server', {
+      name: this.config.MCP_SERVER_NAME,
+      version: this.config.MCP_SERVER_VERSION,
+      wordpressUrl: this.config.WORDPRESS_URL
+    });
+
+    // Initialize WordPress API client
+    this.wordpressClient = new WordPressApiClient(this.config, this.logger);
+
+    // Initialize MCP server with high-level API
+    this.server = new McpServer({
+      name: this.config.MCP_SERVER_NAME,
+      version: this.config.MCP_SERVER_VERSION,
+    });
+
+    this.setupTools();
+  }
+
+  private loadConfig(): Config {
+    try {
+      const rawConfig = {
+        WORDPRESS_URL: process.env.WORDPRESS_URL,
+        WORDPRESS_USERNAME: process.env.WORDPRESS_USERNAME,
+        WORDPRESS_APP_PASSWORD: process.env.WORDPRESS_APP_PASSWORD,
+        MCP_SERVER_NAME: process.env.MCP_SERVER_NAME || 'wordpress-mcp',
+        MCP_SERVER_VERSION: process.env.MCP_SERVER_VERSION || '1.0.0',
+        LOG_LEVEL: process.env.LOG_LEVEL || 'info',
+        REQUEST_TIMEOUT: process.env.REQUEST_TIMEOUT ? 
+          parseInt(process.env.REQUEST_TIMEOUT) : 30000,
+      };
+
+      return ConfigSchema.parse(rawConfig);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        const issues = error.issues.map(issue => 
+          `${issue.path.join('.')}: ${issue.message}`
+        ).join(', ');
+        throw new Error(`Configuration validation failed: ${issues}`);
+      }
+      throw new Error(`Failed to load configuration: ${error}`);
+    }
+  }
+
+  private setupTools(): void {
+    // Test WordPress Connection
+    this.server.tool(
+      "test_wordpress_connection",
+      {
+        description: "Test WordPress API connection and authentication"
+      },
+      async () => {
+        try {
+          const result = await this.wordpressClient.testConnection();
+          return {
+            content: [{
+              type: "text",
+              text: `WordPress connection test ${result.success ? 'PASSED' : 'FAILED'}\n\nMessage: ${result.message}\n\nURL: ${this.config.WORDPRESS_URL}\nUsername: ${this.config.WORDPRESS_USERNAME}`
+            }]
+          };
+        } catch (error) {
+          return {
+            content: [{
+              type: "text", 
+              text: `❌ Connection test failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+            }]
+          };
+        }
+      }
+    );
+
+    // Create WordPress Post
+    this.server.tool(
+      "create_wordpress_post",
+      {
+        title: z.string().min(1).max(255),
+        content: z.string().min(1),
+        status: z.enum(['publish', 'draft', 'private']).default('draft'),
+        excerpt: z.string().optional(),
+        categories: z.array(z.number()).optional(),
+        tags: z.array(z.number()).optional()
+      },
+      async (args) => {
+        try {
+          const post = await this.wordpressClient.createPost(args);
+          return {
+            content: [{
+              type: "text",
+              text: `✅ WordPress post created successfully!\n\nID: ${post.id}\nTitle: ${post.title?.rendered || 'Untitled'}\nStatus: ${post.status}\nURL: ${post.link || 'N/A'}\n\nContent preview: ${post.content?.rendered?.substring(0, 200) || 'No content'}...`
+            }]
+          };
+        } catch (error) {
+          return {
+            content: [{
+              type: "text",
+              text: `❌ Failed to create post: ${error instanceof Error ? error.message : 'Unknown error'}`
+            }]
+          };
+        }
+      }
+    );
+
+    // Update WordPress Post  
+    this.server.tool(
+      "update_wordpress_post",
+      {
+        description: "Update an existing WordPress post",
+        id: z.number().min(1),
+        title: z.string().min(1).max(255).optional(),
+        content: z.string().min(1).optional(),
+        status: z.enum(['publish', 'draft', 'private']).optional(),
+        excerpt: z.string().optional(),
+        categories: z.array(z.number()).optional(),
+        tags: z.array(z.number()).optional()
+      },
+      async (args) => {
+        try {
+          const post = await this.wordpressClient.updatePost(args);
+          return {
+            content: [{
+              type: "text",
+              text: `✅ WordPress post updated successfully!\n\nID: ${post.id}\nTitle: ${post.title?.rendered || 'Untitled'}\nStatus: ${post.status}\nURL: ${post.link || 'N/A'}\nLast modified: ${post.modified || 'N/A'}`
+            }]
+          };
+        } catch (error) {
+          return {
+            content: [{
+              type: "text",
+              text: `❌ Failed to update post: ${error instanceof Error ? error.message : 'Unknown error'}`
+            }]
+          };
+        }
+      }
+    );
+
+    // Delete WordPress Post
+    this.server.tool(
+      "delete_wordpress_post",
+      {
+        description: "Delete a WordPress post",
+        id: z.number().min(1),
+        force: z.boolean().default(false)
+      },
+      async (args) => {
+        try {
+          const result = await this.wordpressClient.deletePost(args);
+          const action = args.force ? 'permanently deleted' : 'moved to trash';
+          return {
+            content: [{
+              type: "text",
+              text: `✅ WordPress post ${action} successfully!\n\nID: ${result.previous.id}\nTitle: ${result.previous.title?.rendered || 'Untitled'}\nDeleted: ${result.deleted}`
+            }]
+          };
+        } catch (error) {
+          return {
+            content: [{
+              type: "text",
+              text: `❌ Failed to delete post: ${error instanceof Error ? error.message : 'Unknown error'}`
+            }]
+          };
+        }
+      }
+    );
+
+    // List WordPress Posts
+    this.server.tool(
+      "list_wordpress_posts",
+      {
+        description: "List WordPress posts with filtering options",
+        per_page: z.number().min(1).max(100).default(10),
+        page: z.number().min(1).default(1),
+        status: z.enum(['publish', 'draft', 'private', 'pending', 'future', 'any']).default('any'),
+        search: z.string().optional(),
+        author: z.number().optional(),
+        categories: z.array(z.number()).optional(),
+        tags: z.array(z.number()).optional(),
+        order: z.enum(['asc', 'desc']).default('desc'),
+        orderby: z.enum(['date', 'id', 'title', 'slug', 'modified']).default('date'),
+        include_content: z.boolean().default(false)
+      },
+      async (args) => {
+        try {
+          const posts = await this.wordpressClient.listPosts(args);
+          
+          if (posts.length === 0) {
+            return {
+              content: [{
+                type: "text",
+                text: "No WordPress posts found matching the criteria."
+              }]
+            };
+          }
+
+          const postList = posts.map(post => {
+            const title = (post.title?.rendered || post.title?.raw || 'Untitled').replace(/[\r\n\t]/g, ' ').trim();
+            const modifiedDate = post.modified ? post.modified.split('T')[0] : 'N/A';
+            let postInfo = `• ID: ${post.id} | ${title} | Status: ${post.status} | Modified: ${modifiedDate}`;
+            
+            if (args.include_content && (post.content?.raw || post.content?.rendered)) {
+              const content = (post.content.raw || post.content.rendered || '').replace(/[\r\n\t]/g, ' ').substring(0, 150);
+              postInfo += `\n  Content: ${content}${content.length >= 150 ? '...' : ''}`;
+            }
+            
+            return postInfo;
+          }).join('\n\n');
+
+          return {
+            content: [{
+              type: "text",
+              text: `Found ${posts.length} WordPress posts:\n\n${postList}`
+            }]
+          };
+        } catch (error) {
+          return {
+            content: [{
+              type: "text",
+              text: `❌ Failed to list posts: ${error instanceof Error ? error.message : 'Unknown error'}`
+            }]
+          };
+        }
+      }
+    );
+
+    // Get Single WordPress Post
+    this.server.tool(
+      "get_wordpress_post",
+      {
+        description: "Get a single WordPress post by ID with full content",
+        id: z.number().min(1),
+        context: z.enum(['view', 'embed', 'edit']).default('edit')
+      },
+      async (args) => {
+        try {
+          const post = await this.wordpressClient.getPost(args);
+          const title = (post.title?.rendered || post.title?.raw || 'Untitled').replace(/[\r\n\t]/g, ' ').trim();
+          const content = post.content?.raw || post.content?.rendered || 'No content available';
+          const excerpt = (post.excerpt?.raw || post.excerpt?.rendered || '').replace(/[\r\n\t]/g, ' ').trim();
+          
+          return {
+            content: [{
+              type: "text",
+              text: `WordPress Post Details:\n\nID: ${post.id}\nTitle: ${title}\nStatus: ${post.status}\nURL: ${post.link || 'N/A'}\nPublished: ${post.date ? post.date.split('T')[0] : 'N/A'}\nModified: ${post.modified ? post.modified.split('T')[0] : 'N/A'}\n\nExcerpt:\n${excerpt}\n\nContent:\n${content}`
+            }]
+          };
+        } catch (error) {
+          return {
+            content: [{
+              type: "text",
+              text: `❌ Failed to get post: ${error instanceof Error ? error.message : 'Unknown error'}`
+            }]
+          };
+        }
+      }
+    );
+
+    // Get WordPress Categories
+    this.server.tool(
+      "get_wordpress_categories",
+      {
+        description: "Get all WordPress categories for content organization"
+      },
+      async () => {
+        try {
+          const categories = await this.wordpressClient.getCategories();
+          
+          if (categories.length === 0) {
+            return {
+              content: [{
+                type: "text",
+                text: "No WordPress categories found."
+              }]
+            };
+          }
+
+          const categoryList = categories.map(cat => 
+            `• ID: ${cat.id} | ${cat.name} | Slug: ${cat.slug} | Posts: ${cat.count || 0}`
+          ).join('\n');
+
+          return {
+            content: [{
+              type: "text",
+              text: `WordPress Categories (${categories.length}):\n\n${categoryList}`
+            }]
+          };
+        } catch (error) {
+          return {
+            content: [{
+              type: "text",
+              text: `❌ Failed to get categories: ${error instanceof Error ? error.message : 'Unknown error'}`
+            }]
+          };
+        }
+      }
+    );
+
+    // Get WordPress Tags
+    this.server.tool(
+      "get_wordpress_tags",
+      {
+        description: "Get all WordPress tags for content tagging"
+      },
+      async () => {
+        try {
+          const tags = await this.wordpressClient.getTags();
+          
+          if (tags.length === 0) {
+            return {
+              content: [{
+                type: "text",
+                text: "No WordPress tags found."
+              }]
+            };
+          }
+
+          const tagList = tags.map(tag => 
+            `• ID: ${tag.id} | ${tag.name} | Slug: ${tag.slug} | Posts: ${tag.count || 0}`
+          ).join('\n');
+
+          return {
+            content: [{
+              type: "text",
+              text: `WordPress Tags (${tags.length}):\n\n${tagList}`
+            }]
+          };
+        } catch (error) {
+          return {
+            content: [{
+              type: "text",
+              text: `❌ Failed to get tags: ${error instanceof Error ? error.message : 'Unknown error'}`
+            }]
+          };
+        }
+      }
+    );
+  }
+
+  async start(): Promise<void> {
+    // Test connection on startup
+    try {
+      this.logger.info('Testing WordPress connection on startup...');
+      const connectionResult = await this.wordpressClient.testConnection();
+      
+      if (!connectionResult.success) {
+        this.logger.error('WordPress connection test failed on startup', {
+          message: connectionResult.message
+        });
+        // Continue anyway - connection might work later
+      } else {
+        this.logger.info('WordPress connection test successful');
+      }
+    } catch (error) {
+      this.logger.error('Failed to test connection on startup', { error });
+    }
+
+    // Start MCP server
+    const transport = new StdioServerTransport();
+    await this.server.connect(transport);
+    
+    this.logger.info('WordPress MCP Server started successfully');
+  }
+
+  async stop(): Promise<void> {
+    this.logger.info('Stopping WordPress MCP Server...');
+    await this.server.close();
+    this.logger.info('WordPress MCP Server stopped');
+  }
+}
+
+// Start the server
+async function main(): Promise<void> {
+  const server = new WordPressMcpServer();
+  
+  // Graceful shutdown handling
+  process.on('SIGINT', async () => {
+    console.error('\nReceived SIGINT, shutting down gracefully...');
+    await server.stop();
+    process.exit(0);
+  });
+
+  process.on('SIGTERM', async () => {
+    console.error('\nReceived SIGTERM, shutting down gracefully...');
+    await server.stop();
+    process.exit(0);
+  });
+
+  try {
+    await server.start();
+  } catch (error) {
+    console.error('Failed to start WordPress MCP Server:', error);
+    process.exit(1);
+  }
+}
+
+// Only run main if this is the main module
+if (import.meta.url === `file://${process.argv[1]}`) {
+  main().catch((error) => {
+    console.error('Unhandled error:', error);
+    process.exit(1);
+  });
+}
