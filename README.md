@@ -141,7 +141,7 @@ npm run build
 npm start
 ```
 
-Note: `.env` wird vom Prozess aus dem aktuellen Arbeitsverzeichnis geladen. Wenn ein GUI‑Prozess (z. B. Claude Desktop) das Working Directory anders setzt, kann `.env` unentdeckt bleiben. In diesem Fall die Variablen als OS‑Umgebungsvariablen setzen oder den Prozess aus dem Repo‑Verzeichnis starten.
+Note: The `.env` file is loaded from the current working directory of the process. If a GUI application (like Claude Desktop) starts the process from a different working directory, the `.env` file may not be found. In this case, set the variables as OS environment variables or ensure the process runs from the repository directory.
 
 **For Claude Desktop specifically:**
 - **Option 1 (Recommended):** Set credentials in the `env` field of `claude_desktop_config.json` (see Method 1, Step 4 above)
