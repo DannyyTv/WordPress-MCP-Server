@@ -196,6 +196,108 @@ npm run dev
 
 Then in another terminal, test with MCP requests as shown in Method 2.
 
+## Logging & Debugging
+
+### File-Based Logging
+
+This MCP server uses **file-based logging** to prevent interference with the Stdio JSON-RPC communication. All log messages are written to a log file instead of stdout/stderr.
+
+**Default Log File Location:**
+```
+~/.wordpress-mcp/server.log
+```
+
+**View Logs in Real-Time:**
+```bash
+tail -f ~/.wordpress-mcp/server.log
+```
+
+**View Recent Logs:**
+```bash
+cat ~/.wordpress-mcp/server.log
+```
+
+### Log Configuration
+
+You can customize logging behavior using environment variables:
+
+#### `LOG_FILE` - Custom Log Path
+Override the default log file location:
+
+```json
+{
+  "mcpServers": {
+    "wordpress": {
+      "command": "node",
+      "args": ["/path/to/WordPress-MCP-Server/dist/index.js"],
+      "env": {
+        "WORDPRESS_URL": "https://your-site.com",
+        "WORDPRESS_USERNAME": "your-email@example.com",
+        "WORDPRESS_APP_PASSWORD": "your-app-password",
+        "LOG_FILE": "/custom/path/to/server.log"
+      }
+    }
+  }
+}
+```
+
+#### `DISABLE_LOGGING` - Disable Logging Completely
+Turn off logging for minimal overhead:
+
+```json
+{
+  "mcpServers": {
+    "wordpress": {
+      "command": "node",
+      "args": ["/path/to/WordPress-MCP-Server/dist/index.js"],
+      "env": {
+        "WORDPRESS_URL": "https://your-site.com",
+        "WORDPRESS_USERNAME": "your-email@example.com",
+        "WORDPRESS_APP_PASSWORD": "your-app-password",
+        "DISABLE_LOGGING": "true"
+      }
+    }
+  }
+}
+```
+
+#### `LOG_LEVEL` - Control Verbosity
+Set the logging level (error, warn, info, debug):
+
+```json
+{
+  "mcpServers": {
+    "wordpress": {
+      "command": "node",
+      "args": ["/path/to/WordPress-MCP-Server/dist/index.js"],
+      "env": {
+        "WORDPRESS_URL": "https://your-site.com",
+        "WORDPRESS_USERNAME": "your-email@example.com",
+        "WORDPRESS_APP_PASSWORD": "your-app-password",
+        "LOG_LEVEL": "debug"
+      }
+    }
+  }
+}
+```
+
+### Troubleshooting Log Issues
+
+**Problem: Log file not created**
+- The log file is only created when the server writes its first log message
+- Try making a request to the server to trigger logging
+- Check if the directory `~/.wordpress-mcp/` exists
+
+**Problem: Permission denied when writing logs**
+- The server automatically falls back to `/tmp/wordpress-mcp-server.log` if it cannot write to the default location
+- Check file permissions on `~/.wordpress-mcp/`
+- Alternatively, set a custom `LOG_FILE` path with write permissions
+
+**Problem: Log file too large**
+- Logs are appended indefinitely
+- Manually clear the log file: `> ~/.wordpress-mcp/server.log`
+- Or set `DISABLE_LOGGING=true` if logging is not needed
+
 ## Transport & Compatibility
 
 ### Stdio-Based Communication

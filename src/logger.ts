@@ -1,10 +1,22 @@
 import { Logger, LogLevel } from './types.js';
+import fs from 'fs';
+import path from 'path';
+import os from 'os';
 
 export class ConsoleLogger implements Logger {
   private level: LogLevel;
+  private logFilePath: string;
+  private isLoggingDisabled: boolean;
+  private fallbackAttempted: boolean = false;
 
   constructor(levelString: string = 'info') {
     this.level = this.parseLogLevel(levelString);
+    this.isLoggingDisabled = process.env.DISABLE_LOGGING === 'true';
+    this.logFilePath = this.getLogFilePath();
+
+    if (!this.isLoggingDisabled) {
+      this.ensureLogDirectory(this.logFilePath);
+    }
   }
 
   private parseLogLevel(levelString: string): LogLevel {
@@ -17,6 +29,50 @@ export class ConsoleLogger implements Logger {
     }
   }
 
+  private getLogFilePath(): string {
+    // 1. Prüfe ENV-Variable LOG_FILE
+    if (process.env.LOG_FILE) {
+      return process.env.LOG_FILE;
+    }
+
+    // 2. Standard: ~/.wordpress-mcp/server.log
+    const homeDir = os.homedir();
+    return path.join(homeDir, '.wordpress-mcp', 'server.log');
+  }
+
+  private ensureLogDirectory(logFilePath: string): void {
+    try {
+      const dirPath = path.dirname(logFilePath);
+      if (!fs.existsSync(dirPath)) {
+        fs.mkdirSync(dirPath, { recursive: true });
+      }
+    } catch (error) {
+      // Silent fail - wird in writeToFile gefangen
+    }
+  }
+
+  private writeToFile(message: string): void {
+    if (this.isLoggingDisabled) {
+      return;
+    }
+
+    try {
+      fs.appendFileSync(this.logFilePath, message + '\n', 'utf8');
+    } catch (error) {
+      // Fallback nur beim ersten Fehler
+      if (!this.fallbackAttempted) {
+        this.fallbackAttempted = true;
+        this.logFilePath = '/tmp/wordpress-mcp-server.log';
+
+        try {
+          fs.appendFileSync(this.logFilePath, message + '\n', 'utf8');
+        } catch {
+          // Silent fail - Logging ist nicht kritisch
+        }
+      }
+    }
+  }
+
   private formatMessage(level: string, message: string, ...args: unknown[]): string {
     const timestamp = new Date().toISOString();
     const formattedArgs = args.length > 0 ? ` ${JSON.stringify(args)}` : '';
@@ -25,25 +81,25 @@ export class ConsoleLogger implements Logger {
 
   error(message: string, ...args: unknown[]): void {
     if (this.level >= LogLevel.ERROR) {
-      console.error(this.formatMessage('ERROR', message, ...args));
+      this.writeToFile(this.formatMessage('ERROR', message, ...args));
     }
   }
 
   warn(message: string, ...args: unknown[]): void {
     if (this.level >= LogLevel.WARN) {
-      console.warn(this.formatMessage('WARN', message, ...args));
+      this.writeToFile(this.formatMessage('WARN', message, ...args));
     }
   }
 
   info(message: string, ...args: unknown[]): void {
     if (this.level >= LogLevel.INFO) {
-      console.info(this.formatMessage('INFO', message, ...args));
+      this.writeToFile(this.formatMessage('INFO', message, ...args));
     }
   }
 
   debug(message: string, ...args: unknown[]): void {
     if (this.level >= LogLevel.DEBUG) {
-      console.debug(this.formatMessage('DEBUG', message, ...args));
+      this.writeToFile(this.formatMessage('DEBUG', message, ...args));
     }
   }
 }
